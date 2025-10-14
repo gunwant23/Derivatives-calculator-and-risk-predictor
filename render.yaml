@@ -1,0 +1,7 @@
+services:
+  - type: worker
+    name: nse-option-collector
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python option_data_collector.py"
+    plan: free
