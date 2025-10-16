@@ -9,8 +9,8 @@ from google.oauth2 import service_account
 from googleapiclient.http import MediaFileUpload
 
 # === GOOGLE DRIVE CONFIG ===
-SERVICE_ACCOUNT_FILE = "nse-drive-key.json"   # Upload this file to Render
-FOLDER_ID = "https://drive.google.com/drive/folders/1HgO_zy9FvmPTs63HvgB40ReE5Z9GrXc_?usp=drive_link"     # Get from Drive folder URL
+SERVICE_ACCOUNT_FILE = "nse-drive-key.json"  # Secret file added in Render
+FOLDER_ID = "YOUR_GOOGLE_DRIVE_FOLDER_ID"   # Replace with your Drive folder ID
 
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 creds = service_account.Credentials.from_service_account_file(
@@ -19,6 +19,7 @@ creds = service_account.Credentials.from_service_account_file(
 drive_service = build("drive", "v3", credentials=creds)
 
 def upload_to_drive(file_path):
+    """Upload a CSV file to Google Drive folder."""
     file_metadata = {
         "name": os.path.basename(file_path),
         "parents": [FOLDER_ID]
@@ -27,11 +28,11 @@ def upload_to_drive(file_path):
     drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
     print(f"☁️ Uploaded to Google Drive: {os.path.basename(file_path)}")
 
-
 # === NSE DATA FETCH FUNCTION ===
 def fetch_nse_option_data(symbol="NIFTY"):
     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
     base_url = "https://www.nseindia.com"
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -40,7 +41,7 @@ def fetch_nse_option_data(symbol="NIFTY"):
 
     session = requests.Session()
     session.headers.update(headers)
-    session.get(base_url, timeout=5)
+    session.get(base_url, timeout=5)  # Get cookies
     response = session.get(url, timeout=10)
 
     data = response.json().get("records", {}).get("data", [])
@@ -49,6 +50,7 @@ def fetch_nse_option_data(symbol="NIFTY"):
     for item in data:
         strike = item["strikePrice"]
         expiry = item["expiryDate"]
+
         if "CE" in item:
             ce = item["CE"]
             ce_data.append({
@@ -60,6 +62,7 @@ def fetch_nse_option_data(symbol="NIFTY"):
                 "OI": ce.get("openInterest"),
                 "ChangeOI": ce.get("changeinOpenInterest")
             })
+
         if "PE" in item:
             pe = item["PE"]
             pe_data.append({
@@ -74,7 +77,6 @@ def fetch_nse_option_data(symbol="NIFTY"):
 
     return pd.DataFrame(ce_data + pe_data)
 
-
 # === MAIN JOB FUNCTION ===
 def job():
     try:
@@ -84,15 +86,15 @@ def job():
         df.to_csv(filename, index=False)
         print(f"✅ Saved: {filename}")
 
-        upload_to_drive(filename)  # Upload after saving
+        upload_to_drive(filename)  # Upload CSV to Google Drive
     except Exception as e:
         print(f"❌ Error: {e} at {datetime.now()}")
 
-
 # === SCHEDULER ===
-schedule.every(5).minutes.do(job)
-print("🚀 Collector started with Google Drive backup...")
-job()
+schedule.every(5).minutes.do(job)  # Runs every 5 minutes
+
+print("🚀 NSE Option Data Collector started with Google Drive backup...")
+job()  # Run once at startup
 
 while True:
     schedule.run_pending()
