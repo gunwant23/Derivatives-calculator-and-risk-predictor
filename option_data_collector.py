@@ -7,15 +7,31 @@ import os
 
 def fetch_nse_option_data(symbol="NIFTY"):
     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
+    base_url = "https://www.nseindia.com"
+
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
     }
 
     session = requests.Session()
-    response = session.get(url, headers=headers)
-    data = response.json()["records"]["data"]
+    session.headers.update(headers)
+
+    # Visit NSE homepage first to get cookies
+    session.get(base_url, timeout=5)
+
+    # Now fetch the data
+    response = session.get(url, timeout=10)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch data: {response.status_code}")
+
+    try:
+        data = response.json().get("records", {}).get("data", [])
+    except Exception as e:
+        print("⚠️ JSON parsing failed. Response text:", response.text[:500])
+        raise e
 
     ce_data = []
     pe_data = []
@@ -33,7 +49,7 @@ def fetch_nse_option_data(symbol="NIFTY"):
                 "type": "CE",
                 "LTP": ce.get("lastPrice"),
                 "OI": ce.get("openInterest"),
-                "ChangeOI": ce.get("changeinOpenInterest")
+                "ChangeOI": ce.get("changeinOpenInterest"),
             })
 
         if "PE" in item:
@@ -45,7 +61,7 @@ def fetch_nse_option_data(symbol="NIFTY"):
                 "type": "PE",
                 "LTP": pe.get("lastPrice"),
                 "OI": pe.get("openInterest"),
-                "ChangeOI": pe.get("changeinOpenInterest")
+                "ChangeOI": pe.get("changeinOpenInterest"),
             })
 
     df = pd.DataFrame(ce_data + pe_data)
@@ -53,11 +69,14 @@ def fetch_nse_option_data(symbol="NIFTY"):
 
 
 def job():
-    df = fetch_nse_option_data("NIFTY")
-    os.makedirs("data", exist_ok=True)
-    filename = f"data/nifty_option_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    df.to_csv(filename, index=False)
-    print(f"✅ Data saved to {filename} at {datetime.now()}")
+    try:
+        df = fetch_nse_option_data("NIFTY")
+        os.makedirs("data", exist_ok=True)
+        filename = f"data/nifty_option_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        df.to_csv(filename, index=False)
+        print(f"✅ Data saved to {filename} at {datetime.now()}")
+    except Exception as e:
+        print(f"❌ Error: {e} at {datetime.now()}")
 
 
 # Run every 5 minutes
