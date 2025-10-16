@@ -10,7 +10,7 @@ from googleapiclient.http import MediaFileUpload
 
 # === GOOGLE DRIVE CONFIG ===
 SERVICE_ACCOUNT_FILE = "nse-drive-key.json"   # Upload this file to Render
-FOLDER_ID = "YOUR_GOOGLE_DRIVE_FOLDER_ID"     # Get from Drive folder URL
+FOLDER_ID = "https://drive.google.com/drive/folders/1HgO_zy9FvmPTs63HvgB40ReE5Z9GrXc_?usp=drive_link"     # Get from Drive folder URL
 
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 creds = service_account.Credentials.from_service_account_file(
